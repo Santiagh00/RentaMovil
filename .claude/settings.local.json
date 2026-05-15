@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f .git/index)",
+      "Bash(git reset *)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git fetch *)",
+      "Bash(java -version)",
+      "Bash(mvn -version)",
+      "Bash(touch settings.gradle)",
+      "Bash(gradle wrapper *)",
+      "Bash(git add *)"
+    ]
+  }
+}
