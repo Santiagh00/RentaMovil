@@ -10,7 +10,23 @@
       "Bash(mvn -version)",
       "Bash(touch settings.gradle)",
       "Bash(gradle wrapper *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(choco -v)",
+      "Bash(winget --version)",
+      "Bash(choco install *)",
+      "Bash(/c/ProgramData/chocolatey/bin/choco install *)",
+      "Bash(where choco *)",
+      "Read(//c/ProgramData/chocolatey/**)",
+      "Bash(curl *)",
+      "Bash(rm \"C:/Users/Santiago/Desktop/apache-maven.zip\")",
+      "Bash(powershell -Command \"Invoke-WebRequest -Uri 'https://dlcdn.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.zip' -OutFile 'C:/Users/Santiago/Desktop/apache-maven.zip'\")",
+      "Bash(powershell *)",
+      "Bash(unzip -q apache-maven.zip)",
+      "Bash(export PATH=\"C:/Users/Santiago/Desktop/apache-maven-3.9.6/bin:$PATH\")",
+      "Bash(C:/Users/Santiago/Desktop/apache-maven-3.9.6/bin/mvn *)"
     ]
   }
 }
