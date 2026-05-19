@@ -88,6 +88,12 @@ public class ClienteService {
                 .count();
     }
 
+    public ClienteResponse obtenerPorNumeroDocumento(String numeroDocumento) {
+        return clienteRepository.findByNumeroDocumento(numeroDocumento)
+                .map(this::mapToResponse)
+                .orElse(null);
+    }
+
     private ClienteResponse mapToResponse(Cliente cliente) {
         ClienteResponse response = new ClienteResponse();
         response.setId(cliente.getId());

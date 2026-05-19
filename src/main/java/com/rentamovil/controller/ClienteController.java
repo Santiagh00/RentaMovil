@@ -45,4 +45,13 @@ public class ClienteController {
         clienteService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/documento/{numeroDocumento}")
+    public ResponseEntity<ClienteResponse> obtenerPorNumeroDocumento(@PathVariable String numeroDocumento) {
+        ClienteResponse response = clienteService.obtenerPorNumeroDocumento(numeroDocumento);
+        if (response == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(response);
+    }
 }
