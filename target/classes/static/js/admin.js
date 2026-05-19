@@ -76,6 +76,7 @@ function showLoginOverlay() {
                         <input type="password" id="login-password" class="form-control" style="background:#0f172a !important; color:#ffffff !important; border:1px solid #334155 !important;" required placeholder="••••••••">
                     </div>
                     <button type="submit" class="btn btn-primary w-100" style="background:#4f46e5 !important; border-color:#4f46e5 !important; height:44px; font-weight:600; border-radius:10px;">Iniciar Sesión</button>
+                    <a href="index.html" class="btn-back" style="display:block; text-align:center; margin-top:16px; color:#94a3b8; font-size:0.875rem; text-decoration:none; transition:color 0.2s;" onmouseover="this.style.color='#f8fafc'" onmouseout="this.style.color='#94a3b8'"><i class="fa-solid fa-arrow-left"></i> Volver a la Página Principal</a>
                     <div id="login-error" style="color:#ef4444; font-size:0.85rem; text-align:center; margin-top:12px; display:none; font-weight:500;"></div>
                 </form>
             </div>
