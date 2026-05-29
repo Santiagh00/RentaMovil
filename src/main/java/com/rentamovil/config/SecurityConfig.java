@@ -65,12 +65,17 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(
                     "/", "/UsuariosRentaMovil.html", "/admin.html",
-                    "/css/**", "/js/**", "/assets/**", "/favicon.ico"
+                    "/css/**", "/js/**", "/assets/**", "/favicon.ico", "/uploads/**"
                 ).permitAll()
                 // H2 Console
                 .requestMatchers("/h2-console/**").permitAll()
                 // Consulta de vehículos disponibles accesible sin login (portal cliente)
                 .requestMatchers(HttpMethod.GET, "/api/vehiculos/disponibles").permitAll()
+                // Permitir registro de clientes, creación de reservas y subida de comprobantes sin login
+                .requestMatchers(HttpMethod.POST, "/api/clientes").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/reservas").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/reservas/*/comprobante").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/clientes/documento/*").permitAll()
 
                 // ── Rutas protegidas: requieren JWT válido ──────────────────
                 .anyRequest().authenticated()

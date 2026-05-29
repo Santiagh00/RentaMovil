@@ -40,4 +40,7 @@ public class Reserva {
 
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion = LocalDateTime.now();
+
+    @Column(name = "comprobante_pago", length = 500)
+    private String comprobantePago;
 }

@@ -19,7 +19,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Servicio de lógica de negocio para reservas.
@@ -170,7 +177,67 @@ public class ReservaService {
 
     public long countActivas() {
         return reservaRepository.findByEstado("activa").size() +
-               reservaRepository.findByEstado("pendiente").size();
+               reservaRepository.findByEstado("pendiente").size() +
+               reservaRepository.findByEstado("pending_payment_validation").size();
+    }
+
+    public BigDecimal getIngresosMesActual() {
+        LocalDate now = LocalDate.now();
+        LocalDate inicioMes = now.withDayOfMonth(1);
+        LocalDate finMes = now.withDayOfMonth(now.lengthOfMonth());
+
+        return reservaRepository.findAll().stream()
+                .filter(r -> !r.getFechaCreacion().toLocalDate().isBefore(inicioMes) && !r.getFechaCreacion().toLocalDate().isAfter(finMes))
+                .filter(r -> "activa".equals(r.getEstado()) || "completada".equals(r.getEstado()))
+                .map(Reserva::getTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Transactional
+    public ReservaResponse actualizarComprobante(Long id, MultipartFile file) {
+        Reserva reserva = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", "id", id));
+        
+        try {
+            String originalFilename = file.getOriginalFilename();
+            String extension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String newFilename = UUID.randomUUID().toString() + extension;
+            Path uploadPath = Paths.get("uploads");
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+            Path filePath = uploadPath.resolve(newFilename);
+            Files.copy(file.getInputStream(), filePath);
+
+            reserva.setComprobantePago("/uploads/" + newFilename);
+            reserva.setEstado("pending_payment_validation");
+            
+            return mapToResponse(reservaRepository.save(reserva));
+        } catch (IOException e) {
+            throw new BusinessException("ERROR_UPLOAD", "No se pudo guardar el archivo: " + e.getMessage());
+        }
+    }
+
+    @Transactional
+    public ReservaResponse validarPagoAdmin(Long id, boolean aprobado) {
+        Reserva reserva = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", "id", id));
+
+        Vehiculo vehiculo = reserva.getVehiculo();
+
+        if (aprobado) {
+            reserva.setEstado("activa");
+            vehiculo.setEstado("rentado");
+        } else {
+            reserva.setEstado("pago_rechazado");
+            vehiculo.setEstado("disponible");
+        }
+        
+        vehiculoRepository.save(vehiculo);
+        return mapToResponse(reservaRepository.save(reserva));
     }
 
     // ─── Mappers internos ──────────────────────────────────────────────────────
@@ -186,6 +253,7 @@ public class ReservaService {
         response.setEstado(reserva.getEstado());
         response.setNotas(reserva.getNotas());
         response.setFechaCreacion(reserva.getFechaCreacion());
+        response.setComprobantePago(reserva.getComprobantePago());
         return response;
     }
 

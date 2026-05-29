@@ -16,4 +16,5 @@ public class ReservaResponse {
     private String estado;
     private String notas;
     private LocalDateTime fechaCreacion;
+    private String comprobantePago;
 }

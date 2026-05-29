@@ -26,7 +26,6 @@ public class DashboardController {
     private final ClienteService clienteService;
     private final VehiculoService vehiculoService;
     private final ReservaService reservaService;
-    private final PagoService pagoService;
 
     /**
      * Retorna métricas clave del negocio para el panel de administración:
@@ -40,7 +39,7 @@ public class DashboardController {
         // LinkedHashMap para mantener el orden de las claves en la respuesta JSON
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("reservasActivas",    reservaService.countActivas());
-        stats.put("ingresosMes",        pagoService.getIngresosMesActual());
+        stats.put("ingresosMes",        reservaService.getIngresosMesActual());
         stats.put("vehiculosRentados",  vehiculoService.countRentados());
         stats.put("clientesActivos",    clienteService.countActivos());
         stats.put("vehiculosDisponibles", vehiculoService.countDisponibles());

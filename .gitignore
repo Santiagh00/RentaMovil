@@ -1,6 +1,7 @@
 /target/
 /.idea/
 /.claude/
+/.gradle/
 /*.docx
 /docx_content.txt
 ~$*.docx

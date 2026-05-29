@@ -26,7 +26,9 @@
       "Bash(powershell *)",
       "Bash(unzip -q apache-maven.zip)",
       "Bash(export PATH=\"C:/Users/Santiago/Desktop/apache-maven-3.9.6/bin:$PATH\")",
-      "Bash(C:/Users/Santiago/Desktop/apache-maven-3.9.6/bin/mvn *)"
+      "Bash(C:/Users/Santiago/Desktop/apache-maven-3.9.6/bin/mvn *)",
+      "Bash(./gradlew compileJava)",
+      "Bash(mvn compile *)"
     ]
   }
 }

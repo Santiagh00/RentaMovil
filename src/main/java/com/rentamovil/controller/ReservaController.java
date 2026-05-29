@@ -10,7 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.web.multipart.MultipartFile;
+import java.util.Map;
 import java.util.List;
 
 /**
@@ -26,9 +27,8 @@ public class ReservaController {
 
     private final ReservaService reservaService;
 
-    /** Crea una nueva reserva. Solo ADMIN. */
+    /** Crea una nueva reserva. Público (desde el portal del cliente). */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ReservaResponse> crear(@Valid @RequestBody ReservaRequest request) {
         log.info("Creando reserva: cliente={}, vehículo={}", request.getClienteId(), request.getVehiculoId());
         return ResponseEntity.status(HttpStatus.CREATED).body(reservaService.crear(request));
@@ -79,5 +79,25 @@ public class ReservaController {
         log.info("Eliminando reserva ID: {}", id);
         reservaService.eliminar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Sube comprobante de pago. Público (desde la web del cliente). */
+    @PostMapping("/{id}/comprobante")
+    public ResponseEntity<ReservaResponse> subirComprobante(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        log.info("Subiendo comprobante para reserva ID: {}", id);
+        return ResponseEntity.ok(reservaService.actualizarComprobante(id, file));
+    }
+
+    /** Valida el pago manualmente. Solo ADMIN. */
+    @PutMapping("/{id}/validar-pago")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ReservaResponse> validarPago(
+            @PathVariable Long id,
+            @RequestBody Map<String, Boolean> payload) {
+        log.info("Admin validando pago para reserva ID: {}", id);
+        boolean aprobado = payload.getOrDefault("aprobado", false);
+        return ResponseEntity.ok(reservaService.validarPagoAdmin(id, aprobado));
     }
 }

@@ -35,4 +35,6 @@ public class ReservaRequest {
 
     @Size(max = 500, message = "Las notas no pueden superar 500 caracteres")
     private String notas;
+
+    private String comprobantePago;
 }

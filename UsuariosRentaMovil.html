@@ -147,29 +147,12 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Payment Gateway Simulation -->
+                <!-- Step 3: Payment Validation -->
                 <div class="step-panel" id="step-3">
-                    <h4 style="margin-bottom: 12px;"><i class="fa-solid fa-credit-card" style="color: #ff3c00;"></i> Pago Seguro</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">
-                        Elige tu medio de pago. Esta interfaz se conecta directamente con los servidores de prueba de Wompi.
+                    <h4 style="margin-bottom: 12px;"><i class="fa-solid fa-file-invoice" style="color: #ff3c00;"></i> Validación Manual</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.9rem;">
+                        Sube una captura o foto del comprobante de pago para validar la reserva. Formatos aceptados: JPG, PNG, WEBP.
                     </p>
-                    
-                    <div class="wompi-box">
-                        <div class="wompi-logo">wompi<span>®</span></div>
-                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">
-                            Pasarela de pago colombiana. Monto total a debitar: <strong id="wompi-total" style="color: var(--accent); font-size: 1rem;">$0</strong>
-                        </p>
-                        
-                        <div style="text-align: left; font-size: 0.85rem; border: 1px dashed var(--border-color); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 16px;">
-                            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Medio de Pago:</label>
-                            <select class="form-control" style="font-size: 0.8rem; padding: 6px 10px;">
-                                <option>Tarjeta de Crédito (Simulada)</option>
-                                <option>PSE - Transferencia Bancaria (Simulada)</option>
-                                <option>Nequi / Daviplata (Simulada)</option>
-                            </select>
-                        </div>
-                        
-                        <div class="wompi-simulation-actions">
                             <button class="btn-wompi-success" id="btn-wompi-success">
                                 <i class="fa-solid fa-circle-check"></i> Simular Aprobación
                             </button>
