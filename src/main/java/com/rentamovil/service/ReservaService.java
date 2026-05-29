@@ -2,52 +2,71 @@ package com.rentamovil.service;
 
 import com.rentamovil.dto.ReservaRequest;
 import com.rentamovil.dto.ReservaResponse;
+import com.rentamovil.exception.BusinessException;
+import com.rentamovil.exception.ResourceNotFoundException;
 import com.rentamovil.model.Cliente;
 import com.rentamovil.model.Reserva;
 import com.rentamovil.model.Vehiculo;
 import com.rentamovil.repository.ClienteRepository;
 import com.rentamovil.repository.ReservaRepository;
 import com.rentamovil.repository.VehiculoRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio de lógica de negocio para reservas.
+ * Gestiona el ciclo de vida completo: creación, actualización de estado
+ * y liberación automática del vehículo al completar/cancelar.
+ */
+@Slf4j
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ReservaService {
 
     private final ReservaRepository reservaRepository;
     private final ClienteRepository clienteRepository;
     private final VehiculoRepository vehiculoRepository;
 
-    public ReservaService(ReservaRepository reservaRepository,
-                         ClienteRepository clienteRepository,
-                         VehiculoRepository vehiculoRepository) {
-        this.reservaRepository = reservaRepository;
-        this.clienteRepository = clienteRepository;
-        this.vehiculoRepository = vehiculoRepository;
-    }
-
     @Transactional
     public ReservaResponse crear(ReservaRequest request) {
+        log.info("Creando reserva: cliente={}, vehículo={}", request.getClienteId(), request.getVehiculoId());
+
         Cliente cliente = clienteRepository.findById(request.getClienteId())
-                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente", "id", request.getClienteId()));
 
         Vehiculo vehiculo = vehiculoRepository.findById(request.getVehiculoId())
-                .orElseThrow(() -> new RuntimeException("Vehículo no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Vehículo", "id", request.getVehiculoId()));
 
         if (!"disponible".equals(vehiculo.getEstado())) {
-            throw new RuntimeException("El vehículo no está disponible");
+            throw new BusinessException("VEHICULO_NO_DISPONIBLE",
+                    "El vehículo con placa '" + vehiculo.getPlaca() + "' no está disponible");
         }
 
         if (request.getFechaInicio().isAfter(request.getFechaFin())) {
-            throw new RuntimeException("La fecha de inicio no puede ser posterior a la fecha fin");
+            throw new BusinessException("FECHAS_INVALIDAS",
+                    "La fecha de inicio no puede ser posterior a la fecha fin");
+        }
+
+        if (request.getFechaInicio().isBefore(LocalDate.now())) {
+            throw new BusinessException("FECHA_PASADA",
+                    "La fecha de inicio no puede ser anterior a hoy");
         }
 
         long dias = ChronoUnit.DAYS.between(request.getFechaInicio(), request.getFechaFin());
+        if (dias < 1) {
+            throw new BusinessException("DURACION_INVALIDA",
+                    "La reserva debe ser de al menos 1 día");
+        }
+
         BigDecimal total = vehiculo.getPrecioDia().multiply(BigDecimal.valueOf(dias));
 
         Reserva reserva = new Reserva();
@@ -59,10 +78,13 @@ public class ReservaService {
         reserva.setEstado(request.getEstado() != null ? request.getEstado() : "pendiente");
         reserva.setNotas(request.getNotas());
 
+        // Marcar el vehículo como rentado para evitar doble reserva
         vehiculo.setEstado("rentado");
         vehiculoRepository.save(vehiculo);
 
-        return mapToResponse(reservaRepository.save(reserva));
+        Reserva guardada = reservaRepository.save(reserva);
+        log.info("Reserva creada con ID: {}, total: {}", guardada.getId(), total);
+        return mapToResponse(guardada);
     }
 
     public List<ReservaResponse> listarTodos() {
@@ -74,7 +96,7 @@ public class ReservaService {
     public ReservaResponse obtenerPorId(Long id) {
         return reservaRepository.findById(id)
                 .map(this::mapToResponse)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", "id", id));
     }
 
     public List<ReservaResponse> listarPorCliente(Long clienteId) {
@@ -91,12 +113,15 @@ public class ReservaService {
 
     @Transactional
     public ReservaResponse actualizar(Long id, ReservaRequest request) {
+        log.info("Actualizando reserva ID: {}", id);
+
         Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", "id", id));
 
         if (request.getFechaInicio() != null && request.getFechaFin() != null) {
             if (request.getFechaInicio().isAfter(request.getFechaFin())) {
-                throw new RuntimeException("La fecha de inicio no puede ser posterior a la fecha fin");
+                throw new BusinessException("FECHAS_INVALIDAS",
+                        "La fecha de inicio no puede ser posterior a la fecha fin");
             }
             reserva.setFechaInicio(request.getFechaInicio());
             reserva.setFechaFin(request.getFechaFin());
@@ -109,10 +134,13 @@ public class ReservaService {
         if (request.getEstado() != null) {
             reserva.setEstado(request.getEstado());
 
+            // Al completar o cancelar, liberar el vehículo automáticamente
             if ("completada".equals(request.getEstado()) || "cancelada".equals(request.getEstado())) {
                 Vehiculo vehiculo = reserva.getVehiculo();
                 vehiculo.setEstado("disponible");
                 vehiculoRepository.save(vehiculo);
+                log.info("Vehículo {} liberado por reserva {} ({})",
+                        vehiculo.getPlaca(), id, request.getEstado());
             }
         }
 
@@ -125,9 +153,12 @@ public class ReservaService {
 
     @Transactional
     public void eliminar(Long id) {
-        Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada"));
+        log.info("Eliminando reserva ID: {}", id);
 
+        Reserva reserva = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", "id", id));
+
+        // Liberar vehículo si la reserva estaba activa o pendiente
         if ("activa".equals(reserva.getEstado()) || "pendiente".equals(reserva.getEstado())) {
             Vehiculo vehiculo = reserva.getVehiculo();
             vehiculo.setEstado("disponible");
@@ -141,6 +172,8 @@ public class ReservaService {
         return reservaRepository.findByEstado("activa").size() +
                reservaRepository.findByEstado("pendiente").size();
     }
+
+    // ─── Mappers internos ──────────────────────────────────────────────────────
 
     private ReservaResponse mapToResponse(Reserva reserva) {
         ReservaResponse response = new ReservaResponse();

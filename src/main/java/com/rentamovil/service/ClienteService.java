@@ -2,29 +2,43 @@ package com.rentamovil.service;
 
 import com.rentamovil.dto.ClienteRequest;
 import com.rentamovil.dto.ClienteResponse;
+import com.rentamovil.exception.BusinessException;
+import com.rentamovil.exception.ResourceNotFoundException;
 import com.rentamovil.model.Cliente;
 import com.rentamovil.repository.ClienteRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio de lógica de negocio para clientes.
+ * - Las lecturas usan @Transactional(readOnly=true): optimización JPA que
+ *   evita flush y permite al ORM hacer optimizaciones de caché.
+ * - Las escrituras usan @Transactional por defecto (readOnly=false).
+ */
+@Slf4j
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ClienteService {
 
     private final ClienteRepository clienteRepository;
 
-    public ClienteService(ClienteRepository clienteRepository) {
-        this.clienteRepository = clienteRepository;
-    }
-
     @Transactional
     public ClienteResponse crear(ClienteRequest request) {
+        log.info("Creando cliente con documento: {}", request.getNumeroDocumento());
+
         if (clienteRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("El email ya está registrado");
+            throw new BusinessException("EMAIL_DUPLICADO",
+                    "El email '" + request.getEmail() + "' ya está registrado");
         }
         if (clienteRepository.existsByNumeroDocumento(request.getNumeroDocumento())) {
-            throw new RuntimeException("El número de documento ya está registrado");
+            throw new BusinessException("DOCUMENTO_DUPLICADO",
+                    "El número de documento '" + request.getNumeroDocumento() + "' ya está registrado");
         }
 
         Cliente cliente = new Cliente();
@@ -36,7 +50,9 @@ public class ClienteService {
         cliente.setEmail(request.getEmail());
         cliente.setEstado(request.getEstado() != null ? request.getEstado() : "activo");
 
-        return mapToResponse(clienteRepository.save(cliente));
+        Cliente guardado = clienteRepository.save(cliente);
+        log.info("Cliente creado con ID: {}", guardado.getId());
+        return mapToResponse(guardado);
     }
 
     public List<ClienteResponse> listarTodos() {
@@ -48,17 +64,21 @@ public class ClienteService {
     public ClienteResponse obtenerPorId(Long id) {
         return clienteRepository.findById(id)
                 .map(this::mapToResponse)
-                .orElseThrow(() -> new RuntimeException("Cliente no encontrado con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente", "id", id));
     }
 
     @Transactional
     public ClienteResponse actualizar(Long id, ClienteRequest request) {
-        Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cliente no encontrado con id: " + id));
+        log.info("Actualizando cliente ID: {}", id);
 
+        Cliente cliente = clienteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente", "id", id));
+
+        // Verificar email solo si cambió
         if (!cliente.getEmail().equals(request.getEmail())
                 && clienteRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("El email ya está registrado");
+            throw new BusinessException("EMAIL_DUPLICADO",
+                    "El email '" + request.getEmail() + "' ya está registrado");
         }
 
         cliente.setNombres(request.getNombres());
@@ -76,8 +96,9 @@ public class ClienteService {
 
     @Transactional
     public void eliminar(Long id) {
+        log.info("Eliminando cliente ID: {}", id);
         if (!clienteRepository.existsById(id)) {
-            throw new RuntimeException("Cliente no encontrado con id: " + id);
+            throw new ResourceNotFoundException("Cliente", "id", id);
         }
         clienteRepository.deleteById(id);
     }
@@ -87,6 +108,14 @@ public class ClienteService {
                 .filter(c -> "activo".equals(c.getEstado()))
                 .count();
     }
+
+    public ClienteResponse obtenerPorNumeroDocumento(String numeroDocumento) {
+        return clienteRepository.findByNumeroDocumento(numeroDocumento)
+                .map(this::mapToResponse)
+                .orElse(null);
+    }
+
+    // ─── Mapper interno ────────────────────────────────────────────────────────
 
     private ClienteResponse mapToResponse(Cliente cliente) {
         ClienteResponse response = new ClienteResponse();
