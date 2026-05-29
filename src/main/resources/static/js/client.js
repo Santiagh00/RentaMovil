@@ -77,11 +77,10 @@ function toggleTheme() {
 // Load Vehicles from Backend
 async function loadVehicles() {
     try {
-        const response = await fetch(`${API_BASE}/vehiculos`);
+        const response = await fetch(`${API_BASE}/vehiculos/disponibles`);
         if (!response.ok) throw new Error('Error al cargar vehículos');
         const data = await response.ok ? await response.json() : [];
-        // Only show available vehicles
-        state.vehicles = data.filter(v => v.estado === 'disponible');
+        state.vehicles = data;
         state.filteredVehicles = [...state.vehicles];
         renderCatalog();
     } catch (error) {

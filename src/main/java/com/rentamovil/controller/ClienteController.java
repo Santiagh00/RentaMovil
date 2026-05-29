@@ -69,10 +69,10 @@ public class ClienteController {
 
     /**
      * Busca un cliente por número de documento.
-     * Útil para el portal cliente (verificar identidad antes de reservar).
+     * Solo ADMIN puede buscar clientes por documento.
      */
     @GetMapping("/documento/{numeroDocumento}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ClienteResponse> obtenerPorNumeroDocumento(
             @PathVariable String numeroDocumento) {
         ClienteResponse response = clienteService.obtenerPorNumeroDocumento(numeroDocumento);

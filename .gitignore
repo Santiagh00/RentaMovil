@@ -1,0 +1,12 @@
+/target/
+/.idea/
+/.claude/
+/*.docx
+/docx_content.txt
+~$*.docx
+*.class
+*.jar
+*.war
+*.ear
+*.log
+.DS_Store

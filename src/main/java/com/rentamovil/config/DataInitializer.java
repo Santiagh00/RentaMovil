@@ -31,7 +31,7 @@ public class DataInitializer {
             if (!usuarioRepository.existsByUsername("admin")) {
                 Usuario admin = Usuario.builder()
                         .username("admin")
-                        .password(passwordEncoder.encode("admin123"))
+                        .password(passwordEncoder.encode("R3nt4M0v1l2025!"))
                         .nombre("Administrador del Sistema")
                         .rol(Rol.ADMIN)
                         .activo(true)

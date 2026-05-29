@@ -2,10 +2,6 @@ package com.rentamovil.controller;
 
 import com.rentamovil.dto.AuthRequest;
 import com.rentamovil.dto.AuthResponse;
-import com.rentamovil.dto.RegisterRequest;
-import com.rentamovil.model.Rol;
-import com.rentamovil.model.Usuario;
-import com.rentamovil.repository.UsuarioRepository;
 import com.rentamovil.security.JwtService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +12,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * Controlador de autenticación — rutas públicas (no requieren JWT).
- * Maneja login y registro de administradores.
+ * Maneja login y validación de tokens.
  */
 @Slf4j
 @RestController
@@ -31,8 +26,6 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final UsuarioRepository usuarioRepository;
-    private final PasswordEncoder passwordEncoder;
 
     /**
      * Autentica un usuario con username y contraseña.
@@ -61,38 +54,6 @@ public class AuthController {
 
         log.info("Login exitoso para usuario: {}", request.getUsername());
         return ResponseEntity.ok(new AuthResponse(token, "Login exitoso"));
-    }
-
-    /**
-     * Registra un nuevo usuario administrador.
-     * En producción este endpoint debería estar protegido o eliminado.
-     *
-     * @param request datos del nuevo administrador
-     * @return JWT del nuevo usuario + mensaje de éxito
-     */
-    @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        log.info("Registro de nuevo administrador: {}", request.getUsername());
-
-        if (usuarioRepository.existsByUsername(request.getUsername())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(new AuthResponse(null, "El username ya está en uso"));
-        }
-
-        Usuario usuario = Usuario.builder()
-                .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .nombre(request.getNombre())
-                .rol(Rol.ADMIN)
-                .activo(true)
-                .build();
-
-        usuarioRepository.save(usuario);
-
-        String token = jwtService.generarToken(usuario);
-        log.info("Administrador registrado exitosamente: {}", request.getUsername());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new AuthResponse(token, "Usuario registrado exitosamente"));
     }
 
     /**

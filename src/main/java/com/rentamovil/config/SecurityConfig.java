@@ -42,6 +42,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final UsuarioDetailsServiceImpl userDetailsService;
 
     // ─── Cadena de filtros principal ──────────────────────────────────────────
@@ -55,14 +56,19 @@ public class SecurityConfig {
             // CORS usando nuestra configuración explícita
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
+            // Permisos para H2 Console (frames)
+            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+
             // Reglas de autorización por ruta
             .authorizeHttpRequests(auth -> auth
                 // ── Rutas públicas ──────────────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(
-                    "/", "/index.html", "/admin.html",
+                    "/", "/UsuariosRentaMovil.html", "/admin.html",
                     "/css/**", "/js/**", "/assets/**", "/favicon.ico"
                 ).permitAll()
+                // H2 Console
+                .requestMatchers("/h2-console/**").permitAll()
                 // Consulta de vehículos disponibles accesible sin login (portal cliente)
                 .requestMatchers(HttpMethod.GET, "/api/vehiculos/disponibles").permitAll()
 
@@ -79,7 +85,9 @@ public class SecurityConfig {
             .authenticationProvider(authenticationProvider())
 
             // Nuestro filtro JWT corre antes que el filtro estándar de usuario/contraseña
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            // Rate limiting antes de todo para bloquear ataques rápidamente
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -120,19 +128,24 @@ public class SecurityConfig {
     // ─── Configuración CORS ────────────────────────────────────────────────────
 
     /**
-     * CORS explícito: permite que el frontend (mismo servidor, puerto 8080)
-     * y cualquier origen local consuma la API.
-     * En producción reemplazar "*" por el dominio real del frontend.
+     * CORS configurado para desarrollo.
+     * PRECAUCIÓN: En producción, restringir allowedOrigins al dominio del frontend.
+     * Usar variable de entorno CORS_ALLOWED_ORIGINS para configurar orígenes.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        String corsOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+        if (corsOrigins != null && !corsOrigins.isBlank()) {
+            config.setAllowedOrigins(List.of(corsOrigins.split(",")));
+        } else {
+            config.setAllowedOrigins(List.of("http://localhost:8080", "http://localhost:8081", "http://localhost:5173"));
+        }
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
-        config.setMaxAge(3600L);   // Cachear preflight 1 hora
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
