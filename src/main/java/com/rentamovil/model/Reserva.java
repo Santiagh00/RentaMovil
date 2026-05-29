@@ -1,5 +1,6 @@
 package com.rentamovil.model;
 
+import com.rentamovil.model.enums.EstadoReserva;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
@@ -32,8 +33,9 @@ public class Reserva {
     @Column(nullable = false)
     private BigDecimal total;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String estado = "pendiente";
+    private EstadoReserva estado = EstadoReserva.PENDIENTE;
 
     @Column(columnDefinition = "TEXT")
     private String notas;

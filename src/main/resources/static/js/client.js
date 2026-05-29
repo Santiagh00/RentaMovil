@@ -43,10 +43,10 @@ const elements = {
     verifiedBanner: document.getElementById('client-verified-banner'),
     verifiedName: document.getElementById('verified-client-name'),
     
-    // Step 3: Pago Manual
+    // Step 3: Pago Wompi
     wompiTotal: document.getElementById('wompi-total'),
-    btnSubmitComprobante: document.getElementById('btn-submit-comprobante'),
-    comprobanteFile: document.getElementById('comprobante-file')
+    btnWompiSuccess: document.getElementById('btn-wompi-success'),
+    btnWompiFailure: document.getElementById('btn-wompi-failure')
 };
 
 // Initialize Application
@@ -189,8 +189,9 @@ function setupEventListeners() {
     // Client auto-lookup
     elements.docNum.addEventListener('blur', lookupClient);
     
-    // Manual payment validation
-    elements.btnSubmitComprobante.addEventListener('click', processBookingWithReceipt);
+    // Wompi payment simulation
+    elements.btnWompiSuccess.addEventListener('click', () => processBooking(true));
+    elements.btnWompiFailure.addEventListener('click', () => processBooking(false));
 }
 
 // Filter Vehicles logic
@@ -384,28 +385,12 @@ async function lookupClient() {
 }
 
 // Process Booking (connected to backend)
-async function processBookingWithReceipt() {
+async function processBooking(paymentSuccess) {
     if (!state.selectedVehicle) return;
     
-    const file = elements.comprobanteFile.files[0];
-    if (!file) {
-        showToast('Por favor adjunte un comprobante de pago', 'danger');
-        return;
-    }
-    
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        showToast('El archivo es demasiado grande. Máximo 5MB.', 'danger');
-        return;
-    }
-
     const total = parseFloat(elements.totalPrice.getAttribute('data-total'));
     const fechaIni = elements.fechaInicio.value;
     const fechaFi = elements.fechaFin.value;
-    
-    // Disable button to prevent double submission
-    elements.btnSubmitComprobante.disabled = true;
-    elements.btnSubmitComprobante.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Procesando...';
     
     try {
         // Step 1: Create client if they do not exist
@@ -436,7 +421,7 @@ async function processBookingWithReceipt() {
             state.clientExists = true;
         }
         
-        // Step 2: Create reservation
+        // Step 2: Create reservation in "pendiente" state to reserve/block the vehicle
         const reservationPayload = {
             clienteId: state.clientId,
             vehiculoId: state.selectedVehicle.id,
@@ -444,7 +429,9 @@ async function processBookingWithReceipt() {
             fechaFin: fechaFi,
             total: total,
             estado: 'pendiente',
-            notas: 'Reserva creada. Pendiente de subir comprobante.'
+            notas: paymentSuccess 
+                ? 'Reserva creada para pago inmediato en pasarela Wompi.'
+                : 'Intento de reserva cancelada por pago fallido.'
         };
         
         const reservationRes = await fetch(`${API_BASE}/reservas`, {
@@ -460,21 +447,82 @@ async function processBookingWithReceipt() {
         
         const reservation = await reservationRes.json();
         
-        // Step 3: Upload receipt
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const uploadRes = await fetch(`${API_BASE}/reservas/${reservation.id}/comprobante`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!uploadRes.ok) {
-            const err = await uploadRes.text();
-            throw new Error(err || 'Error al subir el comprobante.');
+        // Step 3: Handle Wompi Success / Failure
+        if (paymentSuccess) {
+            // 3.1: Register payment as "completado"
+            const paymentPayload = {
+                clienteId: state.clientId,
+                reservaId: reservation.id,
+                metodo: 'Wompi',
+                monto: total,
+                fecha: new Date().toISOString().split('T')[0],
+                estado: 'completado'
+            };
+            
+            const paymentRes = await fetch(`${API_BASE}/pagos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(paymentPayload)
+            });
+            
+            if (!paymentRes.ok) throw new Error('Error al registrar pago en el sistema');
+            
+            // 3.2: Update reservation to "activa"
+            const updateReservationPayload = {
+                clienteId: state.clientId,
+                vehiculoId: state.selectedVehicle.id,
+                fechaInicio: fechaIni,
+                fechaFin: fechaFi,
+                total: total,
+                estado: 'activa',
+                notas: 'Alquiler activado automáticamente tras confirmación de pago exitoso por Wompi.'
+            };
+            
+            const updateRes = await fetch(`${API_BASE}/reservas/${reservation.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateReservationPayload)
+            });
+            
+            if (!updateRes.ok) throw new Error('Error al actualizar estado del alquiler');
+            
+            showToast('¡Pago procesado con éxito! Tu alquiler está confirmado.', 'success');
+        } else {
+            // Register failed payment
+            const paymentPayload = {
+                clienteId: state.clientId,
+                reservaId: reservation.id,
+                metodo: 'Wompi',
+                monto: total,
+                fecha: new Date().toISOString().split('T')[0],
+                estado: 'fallido'
+            };
+            
+            await fetch(`${API_BASE}/pagos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(paymentPayload)
+            });
+            
+            // Cancel reservation to free the vehicle
+            const updateReservationPayload = {
+                clienteId: state.clientId,
+                vehiculoId: state.selectedVehicle.id,
+                fechaInicio: fechaIni,
+                fechaFin: fechaFi,
+                total: total,
+                estado: 'cancelada',
+                notas: 'Reserva cancelada automáticamente debido a pago rechazado en Wompi.'
+            };
+            
+            await fetch(`${API_BASE}/reservas/${reservation.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateReservationPayload)
+            });
+            
+            showToast('Pago declinado por la pasarela de pagos. Reserva cancelada.', 'danger');
         }
-
-        showToast('¡Comprobante enviado! Su reserva será validada por un administrador.', 'success');
         
         // Close modal, refresh catalogue and state
         closeRentModal();
@@ -483,9 +531,6 @@ async function processBookingWithReceipt() {
     } catch (error) {
         showToast(error.message || 'Error durante la reserva', 'danger');
         console.error(error);
-    } finally {
-        elements.btnSubmitComprobante.disabled = false;
-        elements.btnSubmitComprobante.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Enviar Comprobante';
     }
 }
 

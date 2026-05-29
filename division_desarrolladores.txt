@@ -1,0 +1,250 @@
+================================================================================
+           DIVISIÓN DEL PROYECTO RENTAMOVIL - 4 DESARROLLADORES
+================================================================================
+
+Proyecto: RentaMovil - Sistema de Alquiler de Vehículos
+Tecnología: Spring Boot + Spring Security (JWT) + Thymeleaf/HTML/JS
+
+================================================================================
+DESARROLLADOR 1: MODELOS Y ENTIDADES (CORE DOMAIN)
+================================================================================
+
+Responsabilidad: Definir la estructura de datos, modelos JPA y repositorios.
+
+ARCHIVOS ASIGNADOS:
+-------------------
+src/main/java/com/rentamovil/model/Cliente.java
+src/main/java/com/rentamovil/model/Vehiculo.java
+src/main/java/com/rentamovil/model/Reserva.java
+src/main/java/com/rentamovil/model/Usuario.java
+src/main/java/com/rentamovil/model/Rol.java
+
+src/main/java/com/rentamovil/repository/ClienteRepository.java
+src/main/java/com/rentamovil/repository/VehiculoRepository.java
+src/main/java/com/rentamovil/repository/ReservaRepository.java
+src/main/java/com/rentamovil/repository/UsuarioRepository.java
+
+TAREAS:
+-------
+- Crear entidades JPA con anotaciones @Entity, @Table, @Id, @GeneratedValue
+- Definir relaciones: @ManyToOne entre Reserva->Cliente y Reserva->Vehiculo
+- Configurar cascade y fetch strategies apropiados
+- Crear interfaces Repository con Spring Data JPA
+- Definir métodos de consulta personalizados (findByEstado, findByClienteId, etc.)
+- Manejo de estados de vehículos: "disponible", "rentado", "mantenimiento"
+- Manejo de estados de reservas: "pendiente", "activa", "completada", "cancelada", "pending_payment_validation"
+
+VALIDACIONES:
+--------------
+- Campos obligatorios con @NotNull, @NotBlank
+- Validar formato de email, teléfono, placa de vehículo
+- Fechas coherentes (fecha_fin >= fecha_inicio)
+
+================================================================================
+DESARROLLADOR 2: SEGURIDAD Y AUTENTICACIÓN
+================================================================================
+
+Responsabilidad: Implementar sistema de autenticación JWT, configuración de seguridad.
+
+ARCHIVOS ASIGNADOS:
+-------------------
+src/main/java/com/rentamovil/config/SecurityConfig.java
+src/main/java/com/rentamovil/config/RateLimitFilter.java
+src/main/java/com/rentamovil/security/JwtService.java
+src/main/java/com/rentamovil/security/JwtAuthFilter.java
+src/main/java/com/rentamovil/service/UsuarioDetailsServiceImpl.java
+src/main/java/com/rentamovil/dto/AuthRequest.java
+src/main/java/com/rentamovil/dto/AuthResponse.java
+src/main/java/com/rentamovil/dto/RegisterRequest.java
+
+TAREAS:
+-------
+- Implementar JWT (JSON Web Tokens) para autenticación stateless
+- Crear JwtService: generar token, validar token, extraer username
+- Crear JwtAuthFilter: interceptor que valida JWT en cada request
+- Configurar SecurityConfig:
+  * CSRF deshabilitado (JWT no lo necesita)
+  * CORS configurado para frontend
+  * Rutas públicas vs protegidas
+  * Rate limiting básico
+- Implementar UserDetailsService para cargar usuarios desde BD
+- BCrypt para encriptación de contraseñas (strength 12)
+- Manejo de roles: ADMIN, USER
+- @PreAuthorize para control de acceso a nivel de método
+
+ENDPOINTS PÚBLICOS:
+-------------------
+- /api/auth/login
+- /api/auth/register
+- /api/vehiculos/disponibles (GET)
+- /api/clientes (POST) - registro público
+- /api/reservas (POST) - desde portal cliente
+
+================================================================================
+DESARROLLADOR 3: LÓGICA DE NEGOCIO Y SERVICIOS
+================================================================================
+
+Responsabilidad: Implementar la lógica de negocio en servicios, manejo de excepciones.
+
+ARCHIVOS ASIGNADOS:
+-------------------
+src/main/java/com/rentamovil/service/ClienteService.java
+src/main/java/com/rentamovil/service/VehiculoService.java
+src/main/java/com/rentamovil/service/ReservaService.java
+src/main/java/com/rentamovil/config/DataInitializer.java
+
+src/main/java/com/rentamovil/dto/ClienteRequest.java
+src/main/java/com/rentamovil/dto/ClienteResponse.java
+src/main/java/com/rentamovil/dto/VehiculoRequest.java
+src/main/java/com/rentamovil/dto/VehiculoResponse.java
+src/main/java/com/rentamovil/dto/ReservaRequest.java
+src/main/java/com/rentamovil/dto/ReservaResponse.java
+
+src/main/java/com/rentamovil/exception/BusinessException.java
+src/main/java/com/rentamovil/exception/ResourceNotFoundException.java
+src/main/java/com/rentamovil/exception/GlobalExceptionHandler.java
+
+TAREAS:
+-------
+CLIENTE SERVICE:
+- CRUD completo de clientes
+- Validar que no exista cliente con mismo número de documento
+- Búsqueda por documento (para autocompletar en rental)
+
+VEHÍCULO SERVICE:
+- CRUD completo de vehículos
+- Listar vehículos disponibles
+- Contar vehículos por estado (rentados, disponibles)
+- Validaciones de placa única
+
+RESERVA SERVICE:
+- Crear reserva: validar vehículo disponible, fechas válidas
+- Calcular total automáticamente (precio_día * días)
+- Cambiar estado de vehículo a "rentado" al crear reserva
+- Actualizar reserva: al completar/cancelar, liberar vehículo
+- Upload de comprobantes de pago (MultipartFile)
+- Validación manual de pagos por admin
+- Cálculo de ingresos del mes actual
+
+DATA INITIALIZER:
+- Cargar datos de ejemplo al iniciar la aplicación
+- Usuarios admin por defecto
+- Vehículos de muestra
+
+MANEJO DE EXCEPCIONES:
+- ResourceNotFoundException: 404 cuando no existe recurso
+- BusinessException: 400 para reglas de negocio violadas
+- GlobalExceptionHandler: centralizar respuestas de error
+
+================================================================================
+DESARROLLADOR 4: CONTROLADORES API Y FRONTEND
+================================================================================
+
+Responsabilidad: Exponer endpoints REST, crear interfaz de usuario HTML/JS.
+
+ARCHIVOS ASIGNADOS:
+-------------------
+CONTROLLERS API:
+src/main/java/com/rentamovil/controller/AuthController.java
+src/main/java/com/rentamovil/controller/ClienteController.java
+src/main/java/com/rentamovil/controller/VehiculoController.java
+src/main/java/com/rentamovil/controller/ReservaController.java
+src/main/java/com/rentamovil/controller/DashboardController.java
+src/main/java/com/rentamovil/controller/WebController.java
+src/main/java/com/rentamovil/config/WebConfig.java
+
+FRONTEND:
+src/main/resources/static/admin.html
+src/main/resources/static/UsuariosRentaMovil.html
+src/main/resources/static/js/admin.js
+src/main/resources/static/js/client.js
+src/main/resources/static/css/admin.css
+src/main/resources/static/css/client.css
+
+src/main/resources/application.properties
+
+TAREAS:
+-------
+AUTH CONTROLLER:
+- POST /api/auth/login → {token, username, role}
+- POST /api/auth/register → crear usuario
+
+CLIENTE CONTROLLER:
+- GET /api/clientes (protegido ADMIN)
+- GET /api/clientes/{id}
+- GET /api/clientes/documento/{num} (público - autocompletar)
+- POST /api/clientes (público - registro desde portal)
+- PUT /api/clientes/{id}
+- DELETE /api/clientes/{id}
+
+VEHÍCULO CONTROLLER:
+- GET /api/vehiculos (protegido ADMIN)
+- GET /api/vehiculos/disponibles (público)
+- GET /api/vehiculos/{id}
+- POST /api/vehiculos (ADMIN)
+- PUT /api/vehiculos/{id} (ADMIN)
+- DELETE /api/vehiculos/{id} (ADMIN)
+
+RESERVA CONTROLLER:
+- GET /api/reservas (ADMIN)
+- GET /api/reservas/{id} (ADMIN)
+- POST /api/reservas (público - portal cliente)
+- PUT /api/reservas/{id} (ADMIN)
+- POST /api/reservas/{id}/comprobante (público - subir archivo)
+- PUT /api/reservas/{id}/validar-pago (ADMIN)
+
+DASHBOARD CONTROLLER:
+- GET /api/dashboard (ADMIN)
+- Retorna: reservasActivas, ingresosMes, vehiculosRentados, etc.
+
+WEB CONTROLLER:
+- Thymeleaf para servir páginas HTML
+
+WEB CONFIG:
+- Configurar ResourceHandler para servir /uploads/** estáticamente
+
+FRONTEND ADMIN:
+- Login/logout con JWT guardado en localStorage
+- Dashboard con estadísticas
+- Tablas de gestión: vehículos, clientes, reservas
+- Validación de pagos: aprobar/rechazar reservas
+- Dark/light theme
+
+FRONTEND CLIENTE:
+- Catálogo de vehículos disponibles
+- Filtros por tipo (carro/moto)
+- Búsqueda por marca/modelo
+- Modal de rental en 3 pasos:
+  1. Fechas → calcular precio
+  2. Datos cliente → autocompletar si existe
+  3. Subir comprobante de pago
+- Toast notifications para feedback
+
+================================================================================
+RESUMEN DE COLABORACIÓN
+================================================================================
+
+DESARROLLADOR 1 (Modelos):
+  → Dependencias: nenhuma (modelos base)
+  → Depende de: nadie
+
+DESARROLLADOR 2 (Seguridad):
+  → Dependencias: model/Usuario, repository/UsuarioRepository
+  → Depende de: Desarrollador 1
+
+DESARROLLADOR 3 (Servicios):
+  → Dependencias: todos los modelos, repositories, DTOs
+  → Depende de: Desarrollador 1, Desarrollador 2 (JwtService)
+
+DESARROLLADOR 4 (API + Frontend):
+  → Dependencias: servicios, DTOs, configuración de seguridad
+  → Depende de: Desarrollador 2 (SecurityConfig), Desarrollador 3 (Servicios)
+
+FLUJO DE DATOS:
+---------------
+1. Frontend (client.js) → API REST (ReservaController)
+2. Controller → Service (ReservaService)
+3. Service → Repository → Entidad JPA (Reserva, Cliente, Vehiculo)
+4. JWT filter valida token antes de llegar al controller
+
+================================================================================
