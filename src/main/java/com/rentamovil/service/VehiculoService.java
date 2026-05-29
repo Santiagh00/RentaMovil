@@ -2,26 +2,37 @@ package com.rentamovil.service;
 
 import com.rentamovil.dto.VehiculoRequest;
 import com.rentamovil.dto.VehiculoResponse;
+import com.rentamovil.exception.BusinessException;
+import com.rentamovil.exception.ResourceNotFoundException;
 import com.rentamovil.model.Vehiculo;
 import com.rentamovil.repository.VehiculoRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio de lógica de negocio para vehículos.
+ * Las lecturas son readOnly para optimización JPA.
+ */
+@Slf4j
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class VehiculoService {
 
     private final VehiculoRepository vehiculoRepository;
 
-    public VehiculoService(VehiculoRepository vehiculoRepository) {
-        this.vehiculoRepository = vehiculoRepository;
-    }
-
     @Transactional
     public VehiculoResponse crear(VehiculoRequest request) {
+        log.info("Registrando vehículo con placa: {}", request.getPlaca());
+
         if (vehiculoRepository.existsByPlaca(request.getPlaca())) {
-            throw new RuntimeException("La placa ya está registrada");
+            throw new BusinessException("PLACA_DUPLICADA",
+                    "La placa '" + request.getPlaca() + "' ya está registrada");
         }
 
         Vehiculo vehiculo = new Vehiculo();
@@ -35,7 +46,9 @@ public class VehiculoService {
         vehiculo.setPrecioDia(request.getPrecioDia());
         vehiculo.setEstado(request.getEstado() != null ? request.getEstado() : "disponible");
 
-        return mapToResponse(vehiculoRepository.save(vehiculo));
+        Vehiculo guardado = vehiculoRepository.save(vehiculo);
+        log.info("Vehículo creado con ID: {}", guardado.getId());
+        return mapToResponse(guardado);
     }
 
     public List<VehiculoResponse> listarTodos() {
@@ -47,7 +60,7 @@ public class VehiculoService {
     public VehiculoResponse obtenerPorId(Long id) {
         return vehiculoRepository.findById(id)
                 .map(this::mapToResponse)
-                .orElseThrow(() -> new RuntimeException("Vehículo no encontrado con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Vehículo", "id", id));
     }
 
     public List<VehiculoResponse> listarPorEstado(String estado) {
@@ -58,12 +71,15 @@ public class VehiculoService {
 
     @Transactional
     public VehiculoResponse actualizar(Long id, VehiculoRequest request) {
+        log.info("Actualizando vehículo ID: {}", id);
+
         Vehiculo vehiculo = vehiculoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Vehículo no encontrado con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Vehículo", "id", id));
 
         if (!vehiculo.getPlaca().equals(request.getPlaca())
                 && vehiculoRepository.existsByPlaca(request.getPlaca())) {
-            throw new RuntimeException("La placa ya está registrada");
+            throw new BusinessException("PLACA_DUPLICADA",
+                    "La placa '" + request.getPlaca() + "' ya está registrada");
         }
 
         vehiculo.setTipo(request.getTipo());
@@ -85,8 +101,9 @@ public class VehiculoService {
 
     @Transactional
     public void eliminar(Long id) {
+        log.info("Eliminando vehículo ID: {}", id);
         if (!vehiculoRepository.existsById(id)) {
-            throw new RuntimeException("Vehículo no encontrado con id: " + id);
+            throw new ResourceNotFoundException("Vehículo", "id", id);
         }
         vehiculoRepository.deleteById(id);
     }
@@ -98,6 +115,8 @@ public class VehiculoService {
     public long countRentados() {
         return vehiculoRepository.findByEstado("rentado").size();
     }
+
+    // ─── Mapper interno ────────────────────────────────────────────────────────
 
     private VehiculoResponse mapToResponse(Vehiculo vehiculo) {
         VehiculoResponse response = new VehiculoResponse();
