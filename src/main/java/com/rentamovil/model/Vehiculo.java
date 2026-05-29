@@ -1,5 +1,6 @@
 package com.rentamovil.model;
 
+import com.rentamovil.model.enums.EstadoVehiculo;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
@@ -37,8 +38,9 @@ public class Vehiculo {
     @Column(name = "precio_dia", nullable = false)
     private BigDecimal precioDia;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String estado = "disponible";
+    private EstadoVehiculo estado = EstadoVehiculo.DISPONIBLE;
 
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion = LocalDateTime.now();
